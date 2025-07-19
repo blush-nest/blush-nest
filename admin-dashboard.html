@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard - Blush Nest</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h1 class="mb-4">Admin Dashboard</h1>
+    <button id="logoutBtn" class="btn btn-danger mb-3">Logout</button>
+
+    <h3>Add New Product</h3>
+    <form id="productForm" class="mb-5">
+      <input type="text" id="productName" placeholder="Product Name" class="form-control mb-2" required />
+      <input type="text" id="productPrice" placeholder="Product Price" class="form-control mb-2" required />
+      <textarea id="productDescription" placeholder="Product Description" class="form-control mb-2" required></textarea>
+      <input type="text" id="productImageUrl" placeholder="Product Image URL" class="form-control mb-2" required />
+      <button type="submit" class="btn btn-primary">Add Product</button>
+    </form>
+
+    <h3>Products</h3>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Price</th>
+          <th>Description</th>
+          <th>Image URL</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="productsList"></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+    // Firebase config embedded here:
+    const firebaseConfig = {
+      apiKey: "AIzaSyD5S7iY9FvfngaIjd0DDe7t8MMPAg2iIgc",
+      authDomain: "blush-nest.firebaseapp.com",
+      projectId: "blush-nest",
+      storageBucket: "blush-nest.firebasestorage.app",
+      messagingSenderId: "579643377549",
+      appId: "1:579643377549:web:3aca53fa8a6b2a950d1fc4",
+      measurementId: "G-JZTLR8NMR1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Redirect to login if not logged in
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        window.location.href = "login.html";
+      }
+    });
+
+    function uploadImage() {
+  const fileInput = document.getElementById('imageUpload');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    alert("Please select an image.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'blush_nest'); // Your unsigned preset
+
+  fetch('https://api.cloudinary.com/v1_1/dl9joiykr/image/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    console.log("Uploaded:", data);
+    document.getElementById('preview').src = data.secure_url;
+    document.getElementById('preview').style.display = 'block';
+    
+    // Optionally save URL to Firestore here
+  })
+  .catch(err => {
+    console.error("Upload failed:", err);
+    alert("Upload failed.");
+  });
+}
+
+
+    // Logout button
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      signOut(auth).then(() => {
+        window.location.href = "login.html";
+      });
+    });
+
+    const productsList = document.getElementById("productsList");
+    const productForm = document.getElementById("productForm");
+
+    // Load products from Firestore
+    async function loadProducts() {
+      productsList.innerHTML = "";
+      const querySnapshot = await getDocs(collection(db, "products"));
+      querySnapshot.forEach(docSnap => {
+        const product = docSnap.data();
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td contenteditable="true" data-field="name" data-id="${docSnap.id}">${product.name}</td>
+          <td contenteditable="true" data-field="price" data-id="${docSnap.id}">${product.price}</td>
+            <td contenteditable="true" data-field="description" data-id="${docSnap.id}">${product.description || ""}</td>
+          <td contenteditable="true" data-field="imageUrl" data-id="${docSnap.id}">${product.imageUrl}</td>
+          <td>
+            <button class="btn btn-sm btn-danger delete-btn" data-id="${docSnap.id}">Delete</button>
+          </td>
+        `;
+        productsList.appendChild(tr);
+      });
+
+      // Editable cells save on blur
+      document.querySelectorAll("[contenteditable=true]").forEach(cell => {
+        cell.addEventListener("blur", async e => {
+          const id = e.target.dataset.id;
+          const field = e.target.dataset.field;
+          const newValue = e.target.textContent.trim();
+          if (!id || !field) return;
+          await updateDoc(doc(db, "products", id), { [field]: newValue });
+        });
+      });
+
+      // Delete product
+      document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          await deleteDoc(doc(db, "products", btn.dataset.id));
+          loadProducts();
+        });
+      });
+    }
+
+    // Add product form
+    productForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = document.getElementById("productName").value.trim();
+  const price = document.getElementById("productPrice").value.trim();
+  const imageUrl = document.getElementById("productImageUrl").value.trim();
+  const description = document.getElementById("productDescription").value.trim();
+
+  if (name && price && imageUrl && description) {
+    await addDoc(collection(db, "products"), { name, price, imageUrl, description });
+    productForm.reset();
+    loadProducts();
+  }
+});
+
+
+    loadProducts();
+  </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login - Blush Nest Admin</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+
+</head>
+<body>
+  <body class="bg-light d-flex justify-content-center align-items-center vh-100">
+  <div class="card p-4 shadow" style="width: 350px;">
+    <h2 class="text-center mb-4">Admin Login</h2>
+    <input type="email" id="email" placeholder="Email" class="form-control mb-3" />
+    <input type="password" id="password" placeholder="Password" class="form-control mb-3" />
+    <button onclick="login()" class="btn btn-primary btn-block">Login</button>
+    <p id="error" class="text-danger mt-3 text-center"></p>
+  </div>
+</body>
+
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD5S7iY9FvfngaIjd0DDe7t8MMPAg2iIgc",
+      authDomain: "blush-nest.firebaseapp.com",
+      projectId: "blush-nest",
+      storageBucket: "blush-nest.firebasestorage.app",
+      messagingSenderId: "579643377549",
+      appId: "1:579643377549:web:3aca53fa8a6b2a950d1fc4"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      document.getElementById("error").textContent = "";
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = "admin-dashboard.html";
+      } catch (err) {
+        document.getElementById("error").textContent = "Login failed: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
