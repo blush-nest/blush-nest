@@ -112,10 +112,10 @@
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
-          <td contenteditable="true" data-field="name" data-id="${docSnap.id}">${product.name}</td>
+          <td contenteditable="true" data-field="name" data-id="${docSnap.id}">${product.title}</td>
           <td contenteditable="true" data-field="price" data-id="${docSnap.id}">${product.price}</td>
             <td contenteditable="true" data-field="description" data-id="${docSnap.id}">${product.description || ""}</td>
-          <td contenteditable="true" data-field="imageUrl" data-id="${docSnap.id}">${product.imageUrl}</td>
+          <td contenteditable="true" data-field="imageUrl" data-id="${docSnap.id}">${product.image}</td>
           <td>
             <button class="btn btn-sm btn-danger delete-btn" data-id="${docSnap.id}">Delete</button>
           </td>
