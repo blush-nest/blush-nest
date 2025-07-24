@@ -3,163 +3,177 @@
 <head>
   <meta charset="UTF-8" />
   <title>Admin Dashboard - Blush Nest</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-light">
   <div class="container mt-5">
-    <h1 class="mb-4">Admin Dashboard</h1>
+    <h1 class="mb-4">Admin Dashboard - Blush Nest</h1>
     <button id="logoutBtn" class="btn btn-danger mb-3">Logout</button>
 
-    <h3>Add New Product</h3>
     <form id="productForm" class="mb-5">
-      <input type="text" id="productName" placeholder="Product Name" class="form-control mb-2" required />
-      <input type="text" id="productPrice" placeholder="Product Price" class="form-control mb-2" required />
-      <textarea id="productDescription" placeholder="Product Description" class="form-control mb-2" required></textarea>
-      <input type="text" id="productImageUrl" placeholder="Product Image URL" class="form-control mb-2" required />
-      <button type="submit" class="btn btn-primary">Add Product</button>
+      <div class="form-group">
+        <input type="text" class="form-control" id="title" placeholder="Product Title" required />
+      </div>
+      <div class="form-group">
+        <textarea class="form-control" id="description" placeholder="Product Description"></textarea>
+      </div>
+      <div class="form-group">
+        <input type="number" class="form-control" id="price" placeholder="Price (₺)" required />
+      </div>
+      <div class="form-group">
+        <input type="file" class="form-control-file" id="images" multiple />
+      </div>
+      <input type="hidden" id="editingId" />
+      <button type="submit" class="btn btn-primary">Save Product</button>
     </form>
 
-    <h3>Products</h3>
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Price</th>
-          <th>Description</th>
-          <th>Image URL</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="productsList"></tbody>
-    </table>
+    <div id="productList" class="row"></div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-
-    // Firebase config embedded here:
+  <script>
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyD5S7iY9FvfngaIjd0DDe7t8MMPAg2iIgc",
       authDomain: "blush-nest.firebaseapp.com",
       projectId: "blush-nest",
-      storageBucket: "blush-nest.firebasestorage.app",
+      storageBucket: "blush-nest.appspot.com",
       messagingSenderId: "579643377549",
       appId: "1:579643377549:web:3aca53fa8a6b2a950d1fc4",
-      measurementId: "G-JZTLR8NMR1"
+      measurementId: "G-JZTLR8NMR1",
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    // Redirect to login if not logged in
-    onAuthStateChanged(auth, user => {
-      if (!user) {
-        window.location.href = "login.html";
-      }
+    auth.onAuthStateChanged(user => {
+      if (!user) location.href = "index.html";
     });
 
-    function uploadImage() {
-  const fileInput = document.getElementById('imageUpload');
-  const file = fileInput.files[0];
-  
-  if (!file) {
-    alert("Please select an image.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', 'blush_nest'); // Your unsigned preset
-
-  fetch('https://api.cloudinary.com/v1_1/dl9joiykr/image/upload', {
-    method: 'POST',
-    body: formData
-  })
-  .then(res => res.json())
-  .then(data => {
-    console.log("Uploaded:", data);
-    document.getElementById('preview').src = data.secure_url;
-    document.getElementById('preview').style.display = 'block';
-    
-    // Optionally save URL to Firestore here
-  })
-  .catch(err => {
-    console.error("Upload failed:", err);
-    alert("Upload failed.");
-  });
-}
-
-
-    // Logout button
     document.getElementById("logoutBtn").addEventListener("click", () => {
-      signOut(auth).then(() => {
-        window.location.href = "login.html";
-      });
+      auth.signOut().then(() => location.href = "index.html");
     });
 
-    const productsList = document.getElementById("productsList");
     const productForm = document.getElementById("productForm");
+    const productList = document.getElementById("productList");
 
-    // Load products from Firestore
-    async function loadProducts() {
-      productsList.innerHTML = "";
-      const querySnapshot = await getDocs(collection(db, "products"));
-      querySnapshot.forEach(docSnap => {
-        const product = docSnap.data();
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-          <td contenteditable="true" data-field="name" data-id="${docSnap.id}">${product.title}</td>
-          <td contenteditable="true" data-field="price" data-id="${docSnap.id}">${product.price}</td>
-            <td contenteditable="true" data-field="description" data-id="${docSnap.id}">${product.description || ""}</td>
-          <td contenteditable="true" data-field="imageUrl" data-id="${docSnap.id}">${product.image}</td>
-          <td>
-            <button class="btn btn-sm btn-danger delete-btn" data-id="${docSnap.id}">Delete</button>
-          </td>
-        `;
-        productsList.appendChild(tr);
+    async function uploadImage(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "blush_nest");
+      const res = await fetch("https://api.cloudinary.com/v1_1/dl9joiykr/image/upload", {
+        method: "POST",
+        body: formData
       });
-
-      // Editable cells save on blur
-      document.querySelectorAll("[contenteditable=true]").forEach(cell => {
-        cell.addEventListener("blur", async e => {
-          const id = e.target.dataset.id;
-          const field = e.target.dataset.field;
-          const newValue = e.target.textContent.trim();
-          if (!id || !field) return;
-          await updateDoc(doc(db, "products", id), { [field]: newValue });
-        });
-      });
-
-      // Delete product
-      document.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          await deleteDoc(doc(db, "products", btn.dataset.id));
-          loadProducts();
-        });
-      });
+      const data = await res.json();
+      return data.secure_url;
     }
 
-    // Add product form
-    productForm.addEventListener("submit", async e => {
-  e.preventDefault();
-  const name = document.getElementById("productName").value.trim();
-  const price = document.getElementById("productPrice").value.trim();
-  const imageUrl = document.getElementById("productImageUrl").value.trim();
-  const description = document.getElementById("productDescription").value.trim();
+    productForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const price = parseFloat(document.getElementById("price").value);
+      const files = document.getElementById("images").files;
+      const editingId = document.getElementById("editingId").value;
 
-  if (name && price && imageUrl && description) {
-    await addDoc(collection(db, "products"), { name, price, imageUrl, description });
-    productForm.reset();
-    loadProducts();
-  }
-});
+      let imageUrls = [];
+
+      if (files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+          const url = await uploadImage(files[i]);
+          imageUrls.push(url);
+        }
+      } else if (editingId) {
+        const oldDoc = await db.collection("products").doc(editingId).get();
+        imageUrls = oldDoc.data().images || [];
+      }
+
+      const productData = { title, description, price, images: imageUrls };
+
+      if (editingId) {
+        await db.collection("products").doc(editingId).update(productData);
+        document.getElementById("editingId").value = "";
+      } else {
+        await db.collection("products").add(productData);
+      }
+
+      productForm.reset();
+      document.getElementById("images").value = "";
+    });
+
+    db.collection("products").onSnapshot(snapshot => {
+      productList.innerHTML = "";
+      snapshot.forEach(doc => {
+        const product = doc.data();
+        const div = document.createElement("div");
+        div.className = "col-md-4 mb-4";
+
+        const carouselId = `carousel-${doc.id}`;
+        const imagesHTML = (product.images || []).map((url, i) => `
+          <div class="carousel-item ${i === 0 ? "active" : ""}">
+            <img src="${url}" class="d-block w-100" style="height:100%;">
+          </div>
+        `).join("");
+
+        const carouselHTML = `
+  <div id="${carouselId}" class="carousel slide" data-ride="carousel" data-interval="false">
+    <div class="carousel-inner">
+      ${imagesHTML}
+    </div>
+    ${(product.images && product.images.length > 1) ? `
+      <a class="carousel-control-prev" href="#${carouselId}" role="button" data-slide="prev">
+        <span class="carousel-control-prev-icon"></span>
+      </a>
+      <a class="carousel-control-next" href="#${carouselId}" role="button" data-slide="next">
+        <span class="carousel-control-next-icon"></span>
+      </a>
+    ` : ""}
+  </div>
+`;
 
 
-    loadProducts();
+        div.innerHTML = `
+          <div class="card">
+            ${carouselHTML}
+            <div class="card-body">
+              <h5 class="card-title">${product.title}</h5>
+              <p class="card-text">${product.description}</p>
+              <h6>${product.price}₺</h6>
+              <button class="btn btn-warning btn-sm edit-btn" data-id="${doc.id}">Edit</button>
+              <button class="btn btn-danger btn-sm delete-btn" data-id="${doc.id}">Delete</button>
+            </div>
+          </div>
+        `;
+        productList.appendChild(div);
+      });
+
+      document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.onclick = async () => {
+          if (confirm("Are you sure you want to delete this product?")) {
+            await db.collection("products").doc(btn.dataset.id).delete();
+          }
+        };
+      });
+
+      document.querySelectorAll(".edit-btn").forEach(btn => {
+        btn.onclick = async () => {
+          const doc = await db.collection("products").doc(btn.dataset.id).get();
+          const data = doc.data();
+          document.getElementById("title").value = data.title;
+          document.getElementById("description").value = data.description;
+          document.getElementById("price").value = data.price;
+          document.getElementById("editingId").value = btn.dataset.id;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        };
+      });
+    });
   </script>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
